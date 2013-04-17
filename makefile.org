@@ -1,0 +1,30 @@
+* 概述
+* GNU make 介绍
+** Makefile简介
+   + 以下情况的文件会被重新编译:
+     1) 所有源文件都没有被编译过, 则所有都编译生成可执行程序
+     2) 每一个上次执行make之后修改过的c源代码文件,本次make的时候会重新编译
+     3) 头文件被修改,则所有包含此投文件的c源文件在下次make的时候都会被重新编译
+** Mekfile规则介绍
+   + 所有Makefile命令都满足如下规则
+     #+begin_example
+       TARGET...:PREREQUISITES...
+       [TAB]COMMAND
+     #+end_example
+** 简单的示例
+   + 最终编译出edit
+     #+begin_src makefile
+       # sample Makefile
+       edit : main.o kdb.o command.o display.o \
+              insert.o search.o files.o utils.o
+           cc -o edit main.o kdb.o command.o display.o \
+                      insert.o search.o files.o utils.o
+       main.o : main.c defs.h
+           cc -c main.c
+       kdb.o : kdb.c defs.h command.h
+           cc -c kdb.c
+       command.o : command.c defs.h command.h
+           cc -c command.c
+     #+end_src
+
+
