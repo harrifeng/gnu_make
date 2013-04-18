@@ -1,3 +1,4 @@
+#+OPTIONS: ^:nil
 * 概述
 * GNU make 介绍
 ** Makefile简介
@@ -159,6 +160,25 @@
         提示错误
      3) make在执行时候,首先读取的环境变量"MAKEFILES" 所指的文件列表
    + MAKEFILES很少设置,因为设置会导致混乱, 推荐使用include来实现
+** 变量MAKEFILE_LIST
+   + make程序在读取多个makefile时候, (包括MAKEFILES指定, include包括的文件),在对
+     这些文件进行解析执行之前make读取的文件名将会被自动追加到变量MAKEFILE_LIST的定义
+     域中. 所以我们可以通过对MAKEFILE_LIST进行处理来取得当前文件名
+     #+begin_src makefile
+       name1 := $(word $(words $(MAKEFILE_LIST)), $(MAKEFILE_LIST))
+       # some file in current folder, called inc.mk
+       include inc.mk
+       name2 := $(word $(words $(MAKEFILE_LIST)), $(MAKEFILE_LIST))
+       
+       all:
+           @echo name1 = $(name1)
+           @echo name2 = $(name2)
+       
+       #---------output---------
+       # name1 = Makefile
+       # name2 = inc.mk    
+     #+end_src
+
         
 
 
