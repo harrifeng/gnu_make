@@ -25,6 +25,96 @@
            cc -c kdb.c
        command.o : command.c defs.h command.h
            cc -c command.c
+       display.o :display.c defs.h buffer.h
+           cc -c display.c
+       insert.o : insert.c defs.h buffer.h
+           cc -c insert.c
+       serach.o : search.c defs.h buffer.h
+           cc -c search.c
+       file.o : files.c defs.h buffer.h command.h
+           cc -c files.c
+       utils.o : utils.c defs.h
+           cc -c utils.c
+       clean :
+           rm edit main.o kbd.o command.o display.o \
+                   insert.o search.o files.o utils.o
+     #+end_src
+   + 当规则的目标是一个文件的时候, 在它的任何一个依赖文件被修改以后,在执行
+     make的时候, 这个目标文件将会被重新编译或者重新连接.
+   + 目标clean不是一个五年级,它仅仅代表执行一个动作的标示. 而且目标clean没有
+     任何的依赖文件夹,只有一个目的,就是通过这个目标名来执行它所定义的命令. 那么
+     *Makefile中把那些没有任何依赖只有执行动作的目标称为"伪目标"(phony targets)*
+** Make如何工作
+   + 默认情况下make执行的是Makefile中的第一个规则,比如上面例子中就是edit
+   + 以上面为例:
+     1) 目标的.o文件不存在, 使用其规则创建它们
+     2) 目标.o文件存在, 目标.o文件所依赖的.c源文件.h文件中任何一个比.o文件"更新", 
+        那就根据规则重新编译它们
+     3) 目标.o文件存在, 目标.o文件比它任何一个依赖文件都"更新", 那就什么也不做.
+** 指定变量
+   + 上面例子的最开始部门,我们可以看到.o文件列表出现了两次, 这个明显的触犯了DRY
+     (Don't Repeat Yourself)规则, 这就引入了makefile中的变量概念
+     #+begin_src makefile
+       ,#+begin_src makefile
+       # sample Makefile
+       edit : main.o kdb.o command.o display.o \
+              insert.o search.o files.o utils.o
+           cc -o edit main.o kdb.o command.o display.o \
+                 insert.o search.o files.o utils.o
+     #+end_src
+   + 我们可以改成
+     #+begin_src makefile
+       objects = main.o kdb.o command.o display.o \
+              insert.o search.o files.o utils.o
+       edit : $(objects)
+           cc -o edit $(objects)
+       clean :
+           rm edit $(objects)
+     #+end_src
+** 自动推导规则
+   + 既然是计算机,那么自动推导规则(从main.c生成main.o)这个还是能搞定的.
+     #+begin_src makefile
+       objects = main.o kdb.o command.o display.o \
+              insert.o search.o files.o utils.o
+       edit : $(objects)
+           cc -o edit $(objects)
+       main.o : defs.h
+       kbd.o : defs.h command.h
+       command.o : defs.h command.h
+       display.o : defs.h buffer.h
+       insert.o : defs.h buffer.h
+       search.o : defs.h buffer.h
+       files.o : defs.h buffer.h
+       utils.o : defs.h
+       
+       .PHONY : clean
+       clean :
+           rm edit $(objects)
+     #+end_src
+** 另类风格的makefile
+   + 我们也可以如下创建makefile
+     #+begin_src makefile
+       objects = main.o kdb.o command.o display.o \
+              insert.o search.o files.o utils.o
+       edit : $(objects)
+           cc -o edit $(objects)
+       $(objects):defs.h
+       kdb.o command.o files.o : command.h
+       display.o insert.o search.o files.o : buffer.h
+       
+       clean :
+           rm edit $(objects)
+     #+end_src
+   + 但是上面这种风格是不值得推荐的,因为makefile规则的建议原则是*单目标,多依赖*, 
+     这样书写会方便后期的维护
+** 清除工作目录过程文件
+   + 实际应用中,我们要把clean规则如下书写
+     #+begin_src makefile
+       .PHONY : clean
+       # 实践证明-rm是不好使的,还是rm -rf好使
+       clean :
+           rm -rf edit $(objects)
      #+end_src
 
+     
 
