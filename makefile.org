@@ -115,6 +115,52 @@
        clean :
            rm -rf edit $(objects)
      #+end_src
+* Makefile 总述
+** Makefile的内容
+   + 一个完整的makefile文件其实也就是包括下面的五个部分:
+     1) 显示规则: 描述了如何在多种情况下更新一个或者多个被称之为目标的文件, 书写
+        makefile的时候, 需要明确的给出目标文件, 目标的依赖文件列表, 以及更新目标
+        文件所需要的命令(也有些规则没有命令, 这样的规则只是纯粹的描述了文件直接的
+        依赖关系), 这个规则要求啥都写出来.
+     2) 隐含规则:它是make根据一类文件(主要就是文件名后缀)而自动推导出来的规则.make
+        根据目标文件名,自动产生目标依赖文件
+     3) 变量定义:为了防止DRY, 我们定义了变量
+     4) Makefile指示符:
+        + 读取文件
+        + 决定处理或者忽略Makefile中的某一个特定部分
+     5) 注释:也就是#后面的部分
+** makefile文件的命名:
+   + 默认情况下, make会在工作目录下按照如下文件搜索执行文件: "GNUmakefile", "makefile"
+     "Makefile"
+   + 如果都没有上面的文件名,那么就是用make -f, make -file来指定读取
+** 包含其他makefile文件
+   + 首先注意*include后面的文件没有双引号*
+   + include告诉make暂停读取当前的Makefile, 转而读取include指定的一个或者多个文件.
+     完成以后再继续读取当前Makefile的读取.*这也就意味着B文件在一开始就引用A文件, 
+     那么B文件的默认规则不是B文件最开始的规则,而是A的默认规则*
+   + FILENAMES支持扩展
+     #+begin_src makefile
+       include foo *.mk $(bar)
+       # 等同于
+       include foo a.mk b.mk c.mk bish bash
+     #+end_src
+   + 通常情况下, include用在下面两个场合:
+     1) 有多个不同的程序, 由不同目录下面的几个独立的Makefile来描述其重建规则. 它们
+        需要使用一组通用的变量定义. 那就将所有的共同变量放到一个文件lim,然后include
+        它们
+     2) 当根据文件自动产生依赖文件的时候,我们可以将自动产生的依赖关系保存在另外一个
+        文件中, 主Makefile使用指示符"include"包含这些文件. 这样的做法比直接在主
+        Makefile中追加依赖文件的方法要明智的多.
+** 变量MAKEFILES
+   + 如果当前环境定义了环境变量MAKEFILES的话, make会首先将此环境变量的值作为需要读入
+     的Makefile文件, 和include区别:
+     1) 环境变量指定的makefile中的目标不会被作为make执行的终极目标
+     2) 环境变量所定义的文件列表,在执行make时, 如果不能找到其中一个文件, make不会
+        提示错误
+     3) make在执行时候,首先读取的环境变量"MAKEFILES" 所指的文件列表
+   + MAKEFILES很少设置,因为设置会导致混乱, 推荐使用include来实现
+        
+
 
      
 
