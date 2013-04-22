@@ -178,6 +178,75 @@
        # name1 = Makefile
        # name2 = inc.mk    
      #+end_src
+** 其他特殊变量
+   + GNU make支持一个特殊的变量".VARIABLES", 他不能通过其他途径给予赋值, 展开以后
+     他的值是在这个变量引用之前的,所有定义的全局变量的列表
+** makefile文件的重建
+   + 存疑
+** 重载另外一个makefile
+   + 有些情况下,makefile-A需要使用另外一个makefile-B中所定义的变量和规则. 最简单
+     的做法,当然是在makefile-A中include文件makefile-B, 但是使用这种方法,如果两
+     个makefile文件中村咋相同的目标(而规则不同),那么就会与make的要求想左.
+   + 为了解决上述问题,可以使用make中的"%"匹配所有规则的方法,如下:
+     #+begin_src makefile
+       #sample GNUmakefile
+       foo:
+           frobnicate > foo
+       %:force
+           @$(MAKE) -f Makefile $@
+       force:;
+     #+end_src
+   + 上面例子是GUNmake文件的内容, 如果我们make foo, 那么就会自动执行 frobnicate,
+     如果我们执行make bar, 当前文件下没有bar这个目标,那么就会对应到"%", 也就是会
+     去make -f Makefile, 也就是去Makefile文件里面找bar.
+   + 如果Makefile里面有foo目标了怎么办? 没事,因为那样的话就不会去读取Makefile了
+   + 如果细心观察会发现%(所有模式匹配规则)还依赖了一个force: 这样保证了及时目标文件
+     已经存在(比如bar已经存在了), 依然还是会去执行这个规则(因为依赖force是新的, 就
+     必须重新执行).
+   + 而force规则则只使用了空命令: 这是为了防止make试图寻找一个规则去创建force的时候,
+     又引用了%:force而陷入无限循环.
+** make如何解析makefile文件
+   + GUN make的执行分为两个阶段:
+     1) 读取所有的makefile文件(包括MAKIFILES指定;include指定;命令行-f指定的makefile
+        文件). 内建所有的变量, 明确规则,隐含规则. 并建立所有的目标和依赖之间的依赖关系
+        链表
+     2) 根据第一阶段建立的依赖关系链表决定哪些目标需要更新, 并使用对应的规则来重新创建
+        这些目标
+*** 变量取值
+    + 变量定义规则有如下:
+      #+begin_src makefile
+        IMMEDIATE = DEFERRED
+        IMMEDIATE ?= DEFERRED
+        IMMEDIATE := IMMEDIATE
+        IMMEDIATE += DEFERRED or IMMEDIATE
+        define IMMEDIATE
+            DEFERRED
+        endef
+      #+end_src
+    + 如果一个变量使用了+=时候, 如果此前这个变量是一个简单变量(使用:=定义的), 则认为
+      它是立即展开的,其他情况则都认为是"延后"展开的变量
+*** 条件语句
+    + 条件语句都是立即展开的,包括ifdef, ifeq, ifndef, ifneq
+*** 规则的定义
+    + 所有规则在执行make时, 都按照如下模式展开:
+      #+begin_src makefile
+        IMMEDIATE : IMMEDIATE; DEFERRED
+            DEFERRED
+      #+end_src
+    + 规则中目标和依赖如果引用其他变量, 则立即展开. 而规则的命令行中的变量则会被延后展开
+** 总结
+   + make的执行过程如下:
+     1) 一次读取变量MAKEFILES定义的makefile文件列表
+     2) 读取工作目录下的makefile文件(根据命名的查找顺序"GNUmakefile", "makefile", 
+        "Makefile", 首先找到哪个就读取哪个)
+     3) 依次读取工作目录makefile文件中使用指示符include包含的文件
+     4) 查找重建所有已读的makefile文件规则
+     5) 初始化变量值并展开那些需要立即展开的变量和还是冰根据预设条件确定执行分支
+     6) 根据"终极目标"以及其他目标的依赖关系简历依赖关系链表
+     7) 执行"终极目标"以外的所有的目标的规则（根据目标文件和所有依赖文件的时间戳).
+     8) 执行"终极目标＂所在的规则
+
+
 
         
 
