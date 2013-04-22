@@ -245,6 +245,87 @@
      6) 根据"终极目标"以及其他目标的依赖关系简历依赖关系链表
      7) 执行"终极目标"以外的所有的目标的规则（根据目标文件和所有依赖文件的时间戳).
      8) 执行"终极目标＂所在的规则
+* Makefile的规则
+** 一个例子
+   + 下面我们看一个规则的例子
+     #+begin_src makefile
+       foo.o : foo.c defs.h      #module for twiddling the frobs
+           cc -c -g foo.c
+     #+end_src
+   + foo.o是要重建的文件(目标), foo.c 和 defs.h是重建foo.o所需要使用的文件(依赖).
+** 规则语法
+   + 通常的语法规则如下:
+     #+begin_src makefile
+       TARGETS : PREREQUISITES
+           COMMAND
+     #+end_src
+   + 或者可以如下(命令在分号后面)
+     #+begin_src makefile
+       TARGET : PREREQUISITES ; COMMAND
+           COMMAND
+     #+end_src
+   + TARGETS可以是文件名(推荐只有一个文件名,虽然多个也可以), 或者是一个标签(比如
+     clean). TARGETS文件名可以用通配符
+   + 书写规则有如下注意事项:
+     1) 如果不是在分号后面加命令,而是要另起一行的话, [TAB]必须顶头
+     2) Makefile中的的符合"$"有特殊含义, 规则中需要使用"$"的地方,要用"$$"代替
+     3) 长度过长要用反斜杠"\"加到独立行之间.
+** 依赖的类型
+   + 常规的依赖我们就不说了,目标后面的依赖只要有一个时间戳近,那就一定要重新执行
+   + 如果我们有些依赖不希望更新那么频繁,即便它更新了,我们也不想就此判断目标需要
+     重新执行,那么我们就要用到order-only依赖, 其实就是利用管道符号(|), 管道
+     后面的依赖更新不更新和目标重做不重做就没有关系了.
+     #+begin_src makefile
+       LIBS = libtest.a
+       foo : foo.c | $(LIBS)
+           $(CC) $(CFLAGS) $< -o $@ $(LIBS)
+     #+end_src
+** 文件名使用通配符
+   + Makefile中的直接使用文件通配符(规则和bash shell一致)的情况有两种:
+     1) 在规则,依赖中使用, 会在make读取makefile的时候就展开
+     2) 在命令中使用,通配符会在shell执行命令的时候完成
+   + 除此之外,其他上下文中都要使用函数wildcard来实现通配
+*** 通配符使用举例
+    + 变量定义中"object = *.o"不是表示objects代表所有.o文件, 这种情况
+      需要使用"object = $(wildcar *.o)
+*** 通配符存在的缺陷
+    + 我们要时刻牢记通配符仅仅适合在[目标,依赖,命令]中*直接*出现, 即便变量定义了
+      通配符是为[目标,依赖,命令]服务的,也常常会造成奇怪的现象,比如:
+      #+begin_src makefile
+        objects = *.o
+        
+        foo :＄(objects)
+            cc =o foo $(CFLAGS) $(objects)
+      #+end_src
+    + 这个objects因为是为依赖服务的,所以如果当前文件夹下原来有*.o文件,那么不会报错,
+      因为依赖会成功匹配当前文件夹下的所有*.o文件. 但是如果make clean 去掉.o文件,
+      或者你加一个fake.o,那么make就晕了,再次的make就会引发如下错误
+      #+begin_src sh
+        fake.o: file not recognized: File truncated
+        collect2: ld returned 1 exit status
+        Makefile:5: recipe for target `edit' failed
+        make: *** [edit] Error 1
+      #+end_src
+*** 函数wildcard
+    + 解决办法当然就是wildcard啦, 需要注意的是wildcard如果找不到合适的匹配,会忽略
+      模式字符,直接返回空.上面例子的解决方法如下
+      #+begin_src makefile
+        # sample Makefile
+        objects := $(patsubst %.c, %.o, $(wildcard *.c))
+        
+        foo : $(objects)
+            cc -o foo $(objects)
+      #+end_src
+    + 需要注意的是,这里的定义是用的":=", 我们现在只要知道用了函数wildcard,那么就
+      推荐使用":=", 因为这个会减少递归调用的风险
+
+      
+      
+
+     
+
+
+
 
 
 
