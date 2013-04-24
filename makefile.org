@@ -334,3 +334,63 @@
 
      
 
+** 目录搜索
+   + 在较大的项目当中, 一般会将源代码和二进制文件安排在不同的目录来进行管理. 
+     这种情况下, 可以使用make提供给目录搜索依赖的功能
+*** 一般搜索(变量VPATH)
+    + GNU make可以识别一个特殊变量"VPATH", 通过"VPATH"可以指定依赖文件的搜索
+      路径, 当规则的依赖文件当前目录没有, 我们可以去VPATH找, 比如下面例子中, 
+      如果foo.c存在src中, 此规则等价于"foo:src:/foo.c
+      #+begin_src makefile
+        VPATH=src:../headers
+        foo:foo.c
+      #+end_src
+*** 选择性搜索(关键字vpath)
+    + 关键字vpath(小写)和变量VPATH(大写)用法相似,但是更灵活:
+      1) vpath PATTERN DIRECTORIES: 为所有符合PATTERN模式的文件制定搜索目录
+         DIRECTORIES
+      2) vpath PATTERN:清除之前为PATTERN制定的搜索目录
+      3) vpath:清除所有一倍设置的文件搜索路径
+    + vpath中的PATTERN一般都会有个%来进行模糊匹配:
+      #+begin_src makefile
+        vpath %.h ../headers
+      #+end_src
+*** 目标搜索的机制
+    + 我们使用VPATH的时候,有可能会面临文件路径被废弃的情况,比如下面的例子. 如果
+      目标不需要重建的时候,文件路径会被保留. 如果需要重建,那么所有的规则都会在
+      当前目录重建(*.o,*.a都会编译到Makefile所在的目录)
+    + 下面例子中,放在某个文件夹prom下, prom下面又有src, src中有sum.c和memcp.c,
+      prom里面的Makefile为:
+      #+begin_src makefile
+        AR = ar rc
+        LIBS = libtest.a
+        VPATH = src
+        
+        libtet.a : sum.o memcp.o
+            $(AR) $(ARFLAGS) $@ $^
+      #+end_src
+    + 上面这个例子有下面两个情况:
+      1) prom和src都不存在libtest.a,那么执行make的时候会在当前目录下面创建libtest.a
+         这个是我们期待的结果
+      2) 如果src目录下面已经有一个libtest.a了(我们就想放到src目录下面), 如果我们改动
+         代码重新编译,则.o文件和.a文件都会生成在prom文件夹下(目标完整路径在VPATH里面
+         被废弃).这样一来就会有prom/src/libtest.a 和 prom/libtest.a两个文件,而且
+         只有prom/libtest.a是最新的.
+    + 我们使用GPATH(必须和VPATH一起使用)来更改上面的问题. 如果两个目录都不存在libtest.a, 
+      那么会在当前文件夹下创建libtest.a, 如果src目录下面已经有目标文件libtest.a了的话,
+      就会直接在src目录下面更新
+      #+begin_src makefile
+        AR = ar rc
+        LIBS = libtest.a
+        GPATH = src
+        VPATH = src
+        
+        libtest.a:sum.o
+            $(AR) $@ $^
+      #+end_src
+
+
+
+         
+
+      
