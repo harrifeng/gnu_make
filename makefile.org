@@ -333,7 +333,6 @@
 
 
      
-
 ** 目录搜索
    + 在较大的项目当中, 一般会将源代码和二进制文件安排在不同的目录来进行管理. 
      这种情况下, 可以使用make提供给目录搜索依赖的功能
@@ -388,6 +387,47 @@
         libtest.a:sum.o
             $(AR) $@ $^
       #+end_src
+*** 命令行和搜索目录
+    + make在执行的时候,通过目录得到的目标依赖文件可能会在其他目录中,这个时候,依赖
+      文件就是文件的全称了(包括路径), 但是规则是不能总是改的,所以我们要设计出能够
+      根据依赖变化的规则,主要是依赖两个自动化变量:
+      1) $^ :表示所有通过目录搜索得到的依赖文件的完整路径名
+      2) $@ :表示规则的目标
+    + 比如下面的例子中, $^就是指的src/foo.c, 而$@就是指的foo.o
+      #+begin_src makefile
+        # foo.c is in the ./src folder
+        VPATH = src
+        foo.o : foo.c
+            cc -c $(CFLAGS) $^ -o $@
+      #+end_src
+*** 隐含规则和搜索目录
+    + 搜索目录的方法在隐含规则中同样适用
+*** 库文件和搜索目录
+    + Make在连接静态库(*.a),和动态链接库(*.so)也可以通过搜索目录得到, 但需要我们
+      把要寻找的库文件名以"-l{name}"的形式表示出来,其中{name}是指的lib{name}去掉
+      lib签证比如下面就是libcurses.a运用的情形:
+      #+begin_src makefile
+        foo : foo.c -lcurses
+            cc $^ - o$@
+      #+end_src
+    + 之所以用-l{name}, 而不需要加后缀,是因为有个变量专门标记makefile寻找的库后
+      缀(常用的也就是.a 和.so), 这个变量就是.LIBPATTERNS
+      #+begin_src makefile
+        # demo Makefile
+        print :
+            echo $(.LIBPATTERNS)
+        
+        # output
+        # echo lib%.so lib%.a
+        # lib%.so lib%.a
+      #+end_src
+    + 还是上面的例子, 寻找lib{name}文件的顺序是:
+      1) 当前目录
+      2) VPATH和vpath指定的目录
+      3) 系统默认目录/lib, /usr/lib, PREFIX/lib(/usr/local/lib)
+    + 上面例子找到curses的路径就是/usr/lib/libcurses.a
+** Makefile伪目标
+
 
 
 
