@@ -427,6 +427,72 @@
       3) 系统默认目录/lib, /usr/lib, PREFIX/lib(/usr/local/lib)
     + 上面例子找到curses的路径就是/usr/lib/libcurses.a
 ** Makefile伪目标
+   + 伪目标前面见过了, 为了防止当前文件夹下面有和目标同名的文件,所以要声明伪目标
+     #+begin_src makefile
+       .PHONY:clean
+       clean:
+           rm -rf *.o temp
+     #+end_src
+   + 伪目标的好处:
+     1) 当一个目标被声明为伪目标以后,make在执行的时候不会去试图查找隐含规则来创建
+        它
+     2) 不用担心目标和文件崇明导致命令失败
+   + 伪目标的另外一个使用场合是在make的并行和递归执行过程中.
+     #+begin_src makefile
+       SUBDIRS = foo bar baz
+       
+       .PHONY :subdirs $(SUBDIRS)
+       
+       subdirs:$(SUBDIRS)
+       $(SUBDIRS):
+           $(MAKE) -C $@
+       # force the baz run before foo
+       foo : baz
+     #+end_src
+   + 一般情况下, 一个伪目标不会作为另外一个目标的依赖, 这是因为但给一个目标文件的
+     依赖也包含伪目标的时候, 每一次执行这个规则,那么他的依赖也都会去执行.
+   + 相反,伪目标却是可以拥有依赖的, 而且我们约定俗成的会设定一个all的终极目标
+     #+begin_src makefile
+       # sample Makefile
+       all : prog1 prog2 prog3
+       .PHONY : all
+       
+       prog1 : prog1.o utils.o
+           cc -o prog1 prog1.o utils.o
+       
+       prog2 : prog2.o utils.o
+           cc -o prog2 prog2.o utils.o
+       
+       prog3 : prog3.o utils.o
+           cc -o prog3 prog3.o utils.o
+     #+end_src
+** 强制目标
+   + 在非GNU版本的make中, 没有.PHONY的强制执行办法,只好用一个强制的FORCE来实现, 
+     在GNU make中,不推荐使用
+     #+begin_src makefile
+       clean : FORCE
+           rm $(objects)
+       FORCE :
+     #+end_src
+** 空目标文件
+   + 空目标文件也是伪目标文件的一个变种.
+** Makefile的特殊目标
+   + .PHONY:伪目标
+   + .SUFFIXES: 目标.SUFFIXES的所有依赖指出了一系列在后缀规则中需要检查的后缀名
+   + .DEFAULT: 目标.DEFAULT所在的规则定义的命令,用在重建那些没有具体规则的目标
+   + .PRECIOUS: 目标.PRECIOUS所有的依赖文件在make过程中会被特殊处理: 当命令被中
+     断时, make不会删除他们
+   + .INTERMEDIATE : 目标.INTERMETIDATE的依赖文件在make时被作为中间过程文件对待.
+   + .SECONDARY : 目标 .SECONDARY的依赖文件被作为中间过程文件对待.但这些文件不会
+     被删除
+   + .DELETE_ON_ERROR
+   + .IGNORE
+   + .LOW_RESOLUTION_TIME
+   + .SILENT
+   + .EXPORT_ALL_VARIABLES
+   + .NOTPARALLEL
+** 多目标
+   + 
 
 
 
