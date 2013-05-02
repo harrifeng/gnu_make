@@ -332,7 +332,6 @@
         
 
 
-     
 ** 目录搜索
    + 在较大的项目当中, 一般会将源代码和二进制文件安排在不同的目录来进行管理. 
      这种情况下, 可以使用make提供给目录搜索依赖的功能
@@ -492,7 +491,113 @@
    + .EXPORT_ALL_VARIABLES
    + .NOTPARALLEL
 ** 多目标
-   + 
+   + 一个规则如果有多个目标,那么规则所定义的命令对所有的目标有效, 也就是相当于
+     多个规则:
+     1) 仅需要描述依赖关系的规则,是没有命令的,比如下面这个例子中,只是给三个.o
+        文件指定了依赖文件
+        #+begin_src makefile
+          kbd.o command.o files.o : command.h 
+        #+end_src
+     2) 多个目标的重建命令类似,也可以使用哪个$@来引用具体目标
+        #+begin_src makefile
+          bigoutput litteoutput : text.g
+              generate text.g -$(subst outpu,,$@) > $@
+          
+          # equals to following
+          bigoutput : text.g
+              generate text.g -big > bigoutput
+          littleoutput : text.g
+              generate text.g -little > littleoutput
+        #+end_src
+   + 多目标虽然可以根据不同的目标使用不同的命令, 但是多目标并不能做到根据目标文件
+     自动改变依赖文件, 能做到的是make的静态模式.
+** 多规则目标
+   + Makefile中,一个文件可以作为多个规则的目标, 也就是说比如foo.o可以作为两个
+     规则的目标, (这多个规则中,只能有一个规则定义了命令). 这种情况下, 以这个文件
+     为目标的规则的所有依赖文件将会被合并成一个依赖文件列表.当其中任何一个依赖文件
+     比目标更新,都会触发make来重新创建这个目标
+   + 对于多规则的目标,重建此目标的命令只能出现在一个规则中(可以是多条命令), 如果
+     多个规则都有命令,那么make会警告,然后只使用最后一个规则给的命令.
+   + 这种多规则目标其中一个常用的应用场景就是给object文件制定头文件, 比如下面的例子,
+     foo.o, bar.o拥有共同的头文件config.h. 我们可以通过下面的方式来创建
+     #+begin_src makefile
+       objects = foo.o bar.o
+       foo.o : defs.h
+       bar.o : defs.h test.h
+       $(objects) : config.h
+     #+end_src
+** 静态模式
+   + 静态模式就是:规则存在于多个目标, 并且不同的目标可以根据目标文件的名字来自动构造出
+     依赖文件.
+*** 静态模式规则的语法
+    + 静态模式和传统的模式在格式上面有所区别:
+      #+begin_src makefile
+        TARGEST... : TARGET-PATTERN : PREREQ-PATTERNS...
+            COMMANDS
+      #+end_src
+    + target-pattern和prereq-pattern的意思是,为每一个目标文件生成依赖文件, target-pattern
+      是对target的分析, prereq-pattern是对target-pattern的模仿. 下面就是一个如何根据foo.c
+      和bar.o来生成规则依赖的例子
+      #+begin_src makefile
+        objects = foo.o bar.o
+        all : $(objects)
+        
+        $(objects) : %.o : %.c
+            $(CC) -c $(CFLAGS) $< -o $@
+      #+end_src
+    + 上面的例子中, 所有的规则都是.c生成.o. 如果规则不是统一的,那么我们可以使用filter函数,
+      比如下面的例子, .c文件生成.o, .el文件生成.elc
+      #+begin_src makefile
+        files = foo.elc bar.o lose.o
+        $(filter %.o, $(files)) : %.o : %.c
+            $(CC) -c $(CFLAGS) $< -o $@
+        $(filter %.elc, $(files)) : %.elc : %.el
+            emacs -f batch-byte-compile $<
+      #+end_src
+    + 我们原来说过$@代表target, $<代表依赖, 在如今的静态模式中,我们还有一个中间变量,
+      比如上面的例子中的foo和bar, 下面的例子就是对这个中间变量的利用, 其中$*就是这些
+      中间变量,它代表big和little
+      #+begin_src makefile
+        bigoutput littleoutput : %output : text.g
+            generate text.g -$* > $@
+      #+end_src
+*** 静态模式和隐含规则
+    + 静态规则和隐含规则的相同点就是都是一种"非明确"的构建目标的方式.
+    + 不同点方面:
+      - 静态模式是会比隐含规则更明确 一点. 因为我们的静态模式必须把"所有的文件列出来", 
+        比如上面的例子,我们要编译哪些object文件都是事先列出来的
+      - 而隐含规则是可以不列出这些文件,而让系统去这个文件夹下面去探索和匹配
+** 双冒号规则
+   + 把单冒号改成双冒号就是双冒号规则, 这个规则就允许相同的目标出现在不同的规则里面,
+     而且这些规则都可以有命令.
+   + 下面这个例子Newprog就出现在了两个不同的规则里面, 而且他们都有命令. 这个双冒号
+     规则就是说,如果foo.c更新了,Newprog就按照foo.c来创建. 如果bar.c更新了就按照
+     bar.c来创建Newprog. 如果都更新了,就会报错
+     #+begin_src makefile
+       Newprog :: foo.c
+           $(CC) $(CFLAGS) $< -o $@
+       Newprog :: bar.c
+           $(CC) $(CFLAGS) $< -o $@
+     #+end_src
+** 自动产生依赖
+   + Makefile中有时候需要一些规则来描述.o文件和头文件的依赖关系. 比如, 在main.c
+     中使用了defs.h之后, 目标main.o的规则如下:
+     #+begin_src makefile
+       main.o : defs.h 
+     #+end_src
+   + 这样对于一个大型工程,就需要在Makefile中多次书写这个依赖, 而且头文件的增加删除
+     还要惊动make文件, 这本来就不是特别优雅的设计
+   + 后来GNU的gcc编译器增加了 -M(所有头文件)和-MM(除了标准库以外的头文件)的两种
+     参数设计, 极大的解放了生产力.
+
+
+
+
+
+
+     
+
+
 
 
 
