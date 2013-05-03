@@ -589,6 +589,74 @@
      还要惊动make文件, 这本来就不是特别优雅的设计
    + 后来GNU的gcc编译器增加了 -M(所有头文件)和-MM(除了标准库以外的头文件)的两种
      参数设计, 极大的解放了生产力.
+     #+begin_src c
+       /* defs.h file is empty header file */
+       #include "defs.h"
+       #include <stdio.h>
+       
+       int main(int argc, char *argv[]) {
+           
+           return 0;
+       }
+     #+end_src
+   + gcc -M 会产生所有的头文件依赖关系(包括头文件) 
+     #+begin_src sh
+       gcc -M main.c
+       main.o: main.c defs.h /usr/include/stdio.h /usr/include/features.h \
+        /usr/include/sys/cdefs.h /usr/include/bits/wordsize.h \
+        /usr/include/gnu/stubs.h /usr/include/gnu/stubs-32.h \
+        /usr/lib/gcc/i686-redhat-linux/4.4.4/include/stddef.h \
+        /usr/include/bits/types.h /usr/include/bits/typesizes.h \
+        /usr/include/libio.h /usr/include/_G_config.h /usr/include/wchar.h \
+        /usr/lib/gcc/i686-redhat-linux/4.4.4/include/stdarg.h \
+        /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h 
+     #+end_src
+   + 而gcc -MM就不会考虑头文件啦
+     #+begin_src sh
+       gcc -MM main.c
+       main.o: main.c defs.h
+     #+end_src
+   + 我们可以看到在使用gcc自动产生的依赖关系中, 所产生的规则明确的指明了目标是
+     "main.o", 作为中间文件main.o在使用完之后不会被删除
+   + 新版本的make中,推荐使用一个.d文件来描述每个源文件的依赖关系, 也就是说: 所有
+     的.d文件依赖于同名的.c文件
+     #+begin_src makefile
+       CC = gcc
+       CPPFLAGS =
+       
+       %.d: %.c
+           @set -e; rm -f $@; \
+           $(CC) -MM $(CPPFLAGS) $< > $@.$$$$; \
+           sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
+           rm -f $@.$$$$
+       
+       .PHONY : clean
+       clean :
+           rm -rf *.d *.o
+     #+end_src
+   + 上面的$$$$代表进程号, 首先把 "main.o : main.c defs.h"写入到以进程号来区别的
+     一个临时文件中(后面的rm -f $@.$$$$会删除这个临时文件的).
+   + 第三行的sed语句的作用,是把"main.o : main.c defs.h" 转化成如下的内容.这些内容
+     最后都写入到了main.d文件中
+     #+begin_src makefile
+       main.o main.d : main.c defs.h
+     #+end_src
+   + 其实main.d文件就是一个小的Makefile而已(从上面的内容我们也可以发现,.d文件就是没有
+     命令,只有依赖的一些规则), 所以我们可以将这些个小的makefile文件include的到大的
+     Makefile文件里面. 而且鉴于.d文件中有目标,所以我们引用的时候, 一定记得在终极目标
+     之后再include
+     #+begin_src makefile
+       sources = foo.c bar.c
+       # .....
+       # include these little makefiles after the first default goal
+       include $(sources: .c=.d)
+     #+end_src
+
+
+
+
+
+
 
 
 
